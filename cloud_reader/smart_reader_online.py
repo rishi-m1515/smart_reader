@@ -63,14 +63,13 @@ def speak_online(text):
 def analyze_image_with_ai(image_path):
     print("Sending to Google AI...")
     try:
-        # Load image with Pillow (Required for the new 2026 GenAI library)
         pil_image = Image.open(image_path)
 
-        # Using the new 2.5 Flash model
+        # THE NEW PROMPT: Tell it to ignore visual line breaks
         response = client.models.generate_content(
             model="gemini-2.5-flash",
             contents=[
-                "Read the text in this image exactly as it appears. If there is no text, say 'No text found'. Do not explain, just read.",
+                "Read the text in this image. Join sentences together fluidly into paragraphs. Do not include line breaks just because the text wraps to the next line in the physical image. Only use line breaks for actual new paragraphs. If there is no text, say 'No text found'. Do not explain, just read.",
                 pil_image
             ]
         )
@@ -96,11 +95,12 @@ while True:
         # 1. Vision (Gemini 2.5)
         text = analyze_image_with_ai(img_name)
         
-        # Clean up Markdown artifacts AI sometimes adds
-        clean_text = text.replace("*", "").strip()
+        # 2. Clean up Markdown, fix the weird dash glitch, and force single-line paragraphs
+        clean_text = text.replace("*", "").replace("â€“", "-").replace("-\n", "").strip()
+        
         print(f"\nAI READ:\n{clean_text}\n")
         
-        # 2. Voice (Edge TTS Neural)
+        # 3. Voice (Edge TTS Neural)
         if clean_text and "No text found" not in clean_text:
             speak_online(clean_text)
 
