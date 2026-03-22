@@ -1,0 +1,14 @@
+# Ignore the virtual environment
+env/
+
+# Ignore Python cache files
+__pycache__/
+*.pyc
+
+# Ignore saved media
+*.jpg
+*.wav
+*.mp3
+
+# IGNORE SECRETS
+.env

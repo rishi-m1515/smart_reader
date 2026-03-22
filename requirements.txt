@@ -1,0 +1,7 @@
+opencv-python
+pytesseract
+google-genai
+pillow
+edge-tts
+pygame
+python-dotenv
