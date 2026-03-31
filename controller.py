@@ -223,17 +223,24 @@ def handle_custom_mode(key):
         custom_mode_active = False
         speak_cached("Preset mode activated.")
     
-    elif key == 'A': # Delete
+    elif key == 'A': # Single Delete (Short tap)
         if current_word:
             current_word = current_word[:-1]
             speak_cached("Deleted")
         else:
             speak_cached("Empty")
             
+    elif key == 'A_HOLD': # Clear All (2-second hold)
+        if current_word:
+            current_word = "" # Wipes the entire string
+            speak_cached("Cleared all text.")
+        else:
+            speak_cached("Empty")
+            
     elif key == 'B': # Review
         if current_word:
             # We use dynamic here because the word is custom
-            speak_dynamic(f"Current text: {current_word}") 
+            speak_dynamic(f"{current_word}") 
         else:
             speak_cached("Text is empty.")
             
@@ -258,7 +265,7 @@ def handle_custom_mode(key):
         
         # --- INCREASED TIMEOUT ---
         # Bumped up to 2.5 seconds to easily allow double and triple clicks
-        if input_mode == 'letters' and key == last_tap_key and (now - last_tap_time) < 2.5:
+        if input_mode == 'letters' and key == last_tap_key and (now - last_tap_time) < 1:
             char_idx = (char_idx + 1) % len(active_map[key])
             new_char = active_map[key][char_idx]
             if current_case == 'upper': new_char = new_char.upper()
@@ -272,10 +279,22 @@ def handle_custom_mode(key):
         last_tap_key = key
         last_tap_time = now
         
-        if current_word[-1] == " ":
+        # --- AUDIO FEEDBACK DICTIONARY ---
+        PUNCTUATION_SPEECH = {
+            '.': 'period',
+            ',': 'comma',
+            '?': 'question mark',
+            '!': 'exclamation mark'
+        }
+        
+        last_char = current_word[-1]
+        
+        if last_char == " ":
             speak_cached("Space")
+        elif last_char in PUNCTUATION_SPEECH:
+            speak_cached(PUNCTUATION_SPEECH[last_char]) # Speak the word, not the symbol!
         else:
-            speak_cached(current_word[-1].lower())
+            speak_cached(last_char.lower()) # Cache the pronunciation of individual letters
 
 # --- INDUSTRIAL KEYPAD SCANNER ---
 class MatrixKeypad:
@@ -289,6 +308,8 @@ class MatrixKeypad:
             ['*', '0', '#', 'D']
         ]
         
+        self.custom_A_press_time = 0 # NEW: Tracks hold duration for Custom Mode
+
         GPIO.setmode(GPIO.BCM)
         GPIO.setwarnings(False)
         for row in self.ROWS:
@@ -337,8 +358,19 @@ class MatrixKeypad:
             elif is_pressed:
                 handle_preset_mode(key)
         else:
-            # Custom Mode Routing (All act on rising edge, no holds)
-            if is_pressed:
+            # Custom Mode Routing
+            if key == 'A':
+                if is_pressed:
+                    # Start the stopwatch when pressed down
+                    self.custom_A_press_time = time.time()
+                else:
+                    # Check the stopwatch when released
+                    duration = time.time() - self.custom_A_press_time
+                    if duration >= 2.0:
+                        handle_custom_mode('A_HOLD') # Held for 2+ seconds
+                    else:
+                        handle_custom_mode('A') # Short tap
+            elif is_pressed:
                 handle_custom_mode(key)
 
 # --- BOOT UP ---
