@@ -1,34 +1,25 @@
+import os
 import cv2
 import time
 import subprocess
-import os
 import pygame
 from google import genai
 from PIL import Image
-
-# NEW: Import dotenv
 from dotenv import load_dotenv, find_dotenv
 
-# --- CONFIGURATION ---
-# find_dotenv() automatically searches up the folder tree to find your .env file
+# AUTO-DETECT GUI
+HAS_DISPLAY = bool(os.environ.get('DISPLAY'))
+TRIGGER_FILE = "/tmp/scan.trigger"
+
+# Setup[cite: 7]
 load_dotenv(find_dotenv())
-
-# Grab the key securely from the environment
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-
-if not GOOGLE_API_KEY:
-    print("CRITICAL ERROR: Google API Key not found. Please check your .env file.")
-    exit()
-
-# Setup the new 2026 Google Client
 client = genai.Client(api_key=GOOGLE_API_KEY)
 
-# Initialize Camera
 cap = cv2.VideoCapture(0)
 cap.set(3, 640)
 cap.set(4, 480)
 
-# Initialize Audio Player
 try:
     pygame.mixer.init()
 except Exception as e:
@@ -42,20 +33,16 @@ def play_audio(filename):
             time.sleep(0.1)
         pygame.mixer.music.unload()
     except Exception as e:
-        print(f"Audio Playback Error: {e}")
+        pass
 
 def speak_online(text):
     print(f"Speaking: {text}")
-    
-    # NEW: Distinct audio file for the Cloud version
     output_file = "cloud_reading.mp3" 
-    
-    command = f'edge-tts --text "{text}" --write-media {output_file} --voice en-IN-NeerjaNeural'
-    # ... rest of the function stays the same
-    
+    # Point directly to the edge-tts program inside your virtual environment
+    EDGE_TTS_BIN = "/home/rishi/smart_reader/env/bin/edge-tts"
+    command = f'{EDGE_TTS_BIN} --text "{text}" --write-media {output_file} --voice en-IN-NeerjaNeural'
     try:
         subprocess.run(command, shell=True, check=True)
-        print(f"Saved audio to: {output_file}")
         play_audio(output_file)
     except Exception as e:
         print(f"TTS Error: {e}")
@@ -64,47 +51,49 @@ def analyze_image_with_ai(image_path):
     print("Sending to Google AI...")
     try:
         pil_image = Image.open(image_path)
-
-        # THE NEW PROMPT: Tell it to ignore visual line breaks
         response = client.models.generate_content(
             model="gemini-2.5-flash",
-            contents=[
-                "Read the text in this image. Join sentences together fluidly into paragraphs. Do not include line breaks just because the text wraps to the next line in the physical image. Only use line breaks for actual new paragraphs. If there is no text, say 'No text found'. Do not explain, just read.",
-                pil_image
-            ]
+            contents=["Read the text in this image. Join sentences together fluidly into paragraphs. Do not include line breaks just because the text wraps to the next line in the physical image. Only use line breaks for actual new paragraphs. If there is no text, say 'No text found'. Do not explain, just read.", pil_image]
         )
         return response.text
     except Exception as e:
         return f"AI Error: {e}"
 
-print("--- SMART READER ULTIMATE (CLOUD AI) ---")
-print("Press 's' to Scan. Press 'q' to Quit.")
+print(f"--- SMART READER ULTIMATE (GUI Mode: {HAS_DISPLAY}) ---")
 
 while True:
     ret, frame = cap.read()
     if not ret: break
 
-    cv2.imshow('Cloud AI View', frame)
-    key = cv2.waitKey(1) & 0xFF
+    key = None
+    do_scan = False
 
-    if key == ord('s'):
+    if HAS_DISPLAY:
+        try:
+            cv2.imshow('Cloud AI View', frame)
+            key = cv2.waitKey(1) & 0xFF
+            if key == ord('s'):
+                do_scan = True
+        except cv2.error:
+            HAS_DISPLAY = False
+    else:
+        time.sleep(0.05)
+
+    if os.path.exists(TRIGGER_FILE):
+        os.remove(TRIGGER_FILE)
+        do_scan = True
+
+    if do_scan:
         print("\n--- Snap! ---")
         img_name = "cloud_vision.jpg"
         cv2.imwrite(img_name, frame)
-        
-        # 1. Vision (Gemini 2.5)
         text = analyze_image_with_ai(img_name)
-        
-        # 2. Clean up Markdown, fix the weird dash glitch, and force single-line paragraphs
         clean_text = text.replace("*", "").replace("â€“", "-").replace("-\n", "").strip()
-        
         print(f"\nAI READ:\n{clean_text}\n")
-        
-        # 3. Voice (Edge TTS Neural)
         if clean_text and "No text found" not in clean_text:
             speak_online(clean_text)
 
-    elif key == ord('q'):
+    if key is not None and key == ord('q'):
         break
 
 cap.release()
