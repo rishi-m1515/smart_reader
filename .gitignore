@@ -16,4 +16,4 @@ __pycache__/
 .env
 
 # Ignore cached preset recordings
-preset_recordings/
+# preset_recordings/
