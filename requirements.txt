@@ -1,7 +1,7 @@
-opencv-python
-pytesseract
-google-genai
-pillow
-edge-tts
-pygame
-python-dotenv
+Pillow==12.2.0
+protobuf==7.34.1
+pygame==2.6.1
+pytesseract==0.3.13
+python-dotenv==1.2.2
+rpi_gpio==0.7.1
+rpi_lgpio==0.6
