@@ -11,9 +11,7 @@ __pycache__/
 *.mp3
 !beep.wav
 !click.wav
+!preset_recordings/**
 
 # IGNORE SECRETS
 .env
-
-# Ignore cached preset recordings
-# preset_recordings/
