@@ -65,13 +65,12 @@ def analyze_image_with_ai(image_path):
         # We use a "Strict Instruction" style to minimize output tokens.
         prompt = (
             "Read all text in the image exactly. "
-            "If it's a specific object (e.g., medicine, food), name it in 3 words or less. "
+            "If it's a specific object (e.g., medicine, food), name it in 5 words or less. "
             "If no text exists, describe the scene in one short sentence. "
-            "Be extremely brief. No introductory remarks or conversational filler."
         )
 
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-2.5-flash-lite",
             contents=[prompt, pil_image]
         )
         
